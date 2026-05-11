@@ -1,58 +1,126 @@
+# %% [markdown]
+# # Task 2: Stock Price Analysis & Technical Indicators
+# ## KAIM Week 1 - Quantitative Analysis
+# **Student:** Hanna Berhe
+
+# %%
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from src.indicators import calculate_sma, calculate_ema, calculate_rsi, calculate_macd, calculate_bollinger_bands
+import warnings
+warnings.filterwarnings('ignore')
+
+plt.style.use('seaborn-v0_8-darkgrid')
+
+# %%
+# Load stock data
+df = pd.read_csv('data/raw/stock_prices.csv')
+df.columns = [col.strip().title() for col in df.columns]
+df['Date'] = pd.to_datetime(df['Date'])
+df = df.sort_values('Date').reset_index(drop=True)
+
+print(f"Trading days: {len(df)}")
+print(f"Date range: {df['Date'].min().date()} to {df['Date'].max().date()}")
+print(f"\nMissing values:\n{df.isnull().sum()}")
+
+# Handle missing values
+df = df.fillna(method='ffill').fillna(method='bfill')
+print(f"\nMissing values after cleaning: {df.isnull().sum().sum()}")
+
+# %%
+# Compute technical indicators
+df['SMA_20'] = calculate_sma(df['Close'], 20)
+df['SMA_50'] = calculate_sma(df['Close'], 50)
+df['EMA_20'] = calculate_ema(df['Close'], 20)
+df['RSI'] = calculate_rsi(df['Close'])
+df['MACD'], df['MACD_Signal'], df['MACD_Hist'] = calculate_macd(df['Close'])
+df['BB_Upper'], df['BB_Middle'], df['BB_Lower'] = calculate_bollinger_bands(df['Close'])
+
+print("Technical indicators computed successfully!")
 
 # %% [markdown]
-# ## 5. PyNance Metrics - Additional Financial Indicators
+# ## 1. Price with Moving Averages
 
 # %%
-from src.pynance_metrics import compute_atr, compute_mfi, compute_obv, compute_stochastic
-
-# Compute PyNance metrics
-df['ATR'] = compute_atr(df)
-df['MFI'] = compute_mfi(df)
-df['OBV'] = compute_obv(df)
-df['Stoch_K'], df['Stoch_D'] = compute_stochastic(df)
-
-print("PyNance metrics computed successfully!")
-
-# %%
-# Visualize PyNance metrics
-fig, axes = plt.subplots(2, 2, figsize=(16, 10))
-fig.suptitle('PyNance Financial Metrics', fontsize=16, fontweight='bold')
-
-# ATR - Volatility
-axes[0, 0].plot(df['Date'], df['ATR'], color='darkred', linewidth=1.5)
-axes[0, 0].set_title('Average True Range (ATR) - Volatility')
-axes[0, 0].set_xlabel('Date')
-axes[0, 0].set_ylabel('ATR')
-axes[0, 0].grid(True, alpha=0.3)
-
-# MFI - Money Flow Index
-axes[0, 1].plot(df['Date'], df['MFI'], color='teal', linewidth=1.5)
-axes[0, 1].axhline(y=80, color='red', linestyle='--', alpha=0.5, label='Overbought')
-axes[0, 1].axhline(y=20, color='green', linestyle='--', alpha=0.5, label='Oversold')
-axes[0, 1].set_title('Money Flow Index (MFI)')
-axes[0, 1].set_xlabel('Date')
-axes[0, 1].set_ylabel('MFI')
-axes[0, 1].legend()
-axes[0, 1].grid(True, alpha=0.3)
-
-# OBV - On-Balance Volume
-axes[1, 0].plot(df['Date'], df['OBV'], color='purple', linewidth=1.5)
-axes[1, 0].set_title('On-Balance Volume (OBV)')
-axes[1, 0].set_xlabel('Date')
-axes[1, 0].set_ylabel('OBV')
-axes[1, 0].grid(True, alpha=0.3)
-
-# Stochastic Oscillator
-axes[1, 1].plot(df['Date'], df['Stoch_K'], label='%K', color='blue', linewidth=1.5)
-axes[1, 1].plot(df['Date'], df['Stoch_D'], label='%D', color='orange', linewidth=1.5)
-axes[1, 1].axhline(y=80, color='red', linestyle='--', alpha=0.5)
-axes[1, 1].axhline(y=20, color='green', linestyle='--', alpha=0.5)
-axes[1, 1].set_title('Stochastic Oscillator')
-axes[1, 1].set_xlabel('Date')
-axes[1, 1].set_ylabel('Value')
-axes[1, 1].legend()
-axes[1, 1].grid(True, alpha=0.3)
-
+fig, ax = plt.subplots(figsize=(14, 6))
+ax.plot(df['Date'], df['Close'], label='Close Price', color='black', linewidth=1.5)
+ax.plot(df['Date'], df['SMA_20'], label='SMA 20', color='blue', alpha=0.7)
+ax.plot(df['Date'], df['SMA_50'], label='SMA 50', color='orange', alpha=0.7)
+ax.plot(df['Date'], df['EMA_20'], label='EMA 20', color='red', linestyle='--', alpha=0.7)
+ax.set_xlabel('Date')
+ax.set_ylabel('Price ($)')
+ax.set_title('Stock Price with Moving Averages')
+ax.legend()
+ax.grid(True, alpha=0.3)
 plt.tight_layout()
-plt.savefig('reports/figures/pynance_metrics.png', dpi=150, bbox_inches='tight')
+plt.savefig('reports/figures/moving_averages.png', dpi=150, bbox_inches='tight')
 plt.show()
+
+# %% [markdown]
+# ## 2. RSI Analysis
+
+# %%
+fig, ax = plt.subplots(figsize=(14, 4))
+ax.plot(df['Date'], df['RSI'], color='purple', linewidth=1.5)
+ax.axhline(y=70, color='red', linestyle='--', alpha=0.5, label='Overbought (70)')
+ax.axhline(y=30, color='green', linestyle='--', alpha=0.5, label='Oversold (30)')
+ax.fill_between(df['Date'], 70, df['RSI'], where=(df['RSI'] > 70), color='red', alpha=0.1)
+ax.fill_between(df['Date'], 30, df['RSI'], where=(df['RSI'] < 30), color='green', alpha=0.1)
+ax.set_xlabel('Date')
+ax.set_ylabel('RSI')
+ax.set_title('Relative Strength Index (RSI)')
+ax.legend()
+ax.set_ylim(0, 100)
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig('reports/figures/rsi_analysis.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+# %% [markdown]
+# ## 3. MACD Analysis
+
+# %%
+fig, ax = plt.subplots(figsize=(14, 4))
+ax.plot(df['Date'], df['MACD'], label='MACD', color='blue', linewidth=1.5)
+ax.plot(df['Date'], df['MACD_Signal'], label='Signal Line', color='orange', linewidth=1.5)
+colors = ['green' if x >= 0 else 'red' for x in df['MACD_Hist']]
+ax.bar(df['Date'], df['MACD_Hist'], color=colors, alpha=0.5, label='Histogram')
+ax.axhline(y=0, color='black', linestyle='-', alpha=0.3)
+ax.set_xlabel('Date')
+ax.set_ylabel('MACD')
+ax.set_title('MACD (Moving Average Convergence Divergence)')
+ax.legend()
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig('reports/figures/macd_analysis.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+# %% [markdown]
+# ## 4. Bollinger Bands
+
+# %%
+fig, ax = plt.subplots(figsize=(14, 6))
+ax.plot(df['Date'], df['Close'], label='Close Price', color='black', linewidth=1.5)
+ax.plot(df['Date'], df['BB_Upper'], label='Upper Band', color='red', linestyle='--', alpha=0.7)
+ax.plot(df['Date'], df['BB_Middle'], label='Middle Band (SMA)', color='blue', linestyle='--', alpha=0.7)
+ax.plot(df['Date'], df['BB_Lower'], label='Lower Band', color='green', linestyle='--', alpha=0.7)
+ax.fill_between(df['Date'], df['BB_Upper'], df['BB_Lower'], alpha=0.1, color='gray')
+ax.set_xlabel('Date')
+ax.set_ylabel('Price ($)')
+ax.set_title('Bollinger Bands (20-day, 2 std)')
+ax.legend()
+ax.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.savefig('reports/figures/bollinger_bands.png', dpi=150, bbox_inches='tight')
+plt.show()
+
+# %% [markdown]
+# ## Summary
+# 
+# 1. **Moving Averages**: SMA 20/50 and EMA 20 computed and visualized
+# 2. **RSI**: Overbought/oversold levels identified at 70/30
+# 3. **MACD**: Signal line crossovers indicate momentum changes
+# 4. **Bollinger Bands**: Volatility bands show price containment
+# 5. **Next**: Combine with sentiment analysis for prediction model
